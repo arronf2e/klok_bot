@@ -103,7 +103,7 @@ class Worker {
             const response = await this.client.get('/points');
             const pointsData = response.data;
             log(chalk.green(` 聊天积分: ${pointsData.points?.inference || 0}`));
-            log(chalk.green(` 聊天积分: ${pointsData.points?.referral || 0}`));
+            log(chalk.green(` 邀请积分: ${pointsData.points?.referral || 0}`));
             log(chalk.green(` 总积分: ${pointsData.total_points || 0}`));
             log(chalk.green(`========================\x1b[0m\n`));
             return pointsData;
