@@ -206,7 +206,7 @@ class Worker {
 
 async function startWithDelay() {
     log(chalk.yellow(`⏳ 线程将在 ${(THREAD_DELAY / 1000).toFixed(1)} 秒后开始...`));
-    // await new Promise(resolve => setTimeout(resolve, THREAD_DELAY));
+    await new Promise(resolve => setTimeout(resolve, THREAD_DELAY));
     mainLoop();
 }
 
