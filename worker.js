@@ -41,7 +41,7 @@ async function mainLoop() {
         await delay(5000)
         await worker.checkPoints();
         await worker.getModels();
-        await worker.checkTwitterMira();
+        await worker.checkSocialTask();
         await delay(5000)
         await worker.createChat();
     } catch (error) {
@@ -108,6 +108,7 @@ class Worker {
             log(chalk.green(` 邀请积分: ${pointsData.points?.referral || 0}`));
             log(chalk.green(` Mira推特关注积分: ${pointsData.points?.twitter_mira || 0}`));
             log(chalk.green(` Klok推特关注积分: ${pointsData.points?.twitter_klok || 0}`));
+            log(chalk.green(` discord关注积分: ${pointsData.points?.discord || 0}`));
             log(chalk.green(` 总积分: ${pointsData.total_points || 0}`));
             log(chalk.green(`========================\x1b[0m\n`));
             return pointsData;
@@ -117,9 +118,10 @@ class Worker {
         }
     }
 
-    async checkTwitterMira() {
-        log(chalk.green(`⏳ 检测关注Twitter Mira任务状态...`));
+    async checkSocialTask() {
+        log(chalk.green(`⏳ 检测社交任务状态...`));
         try {
+            log(chalk.green(`⏳ 检测关注Twitter Mira任务状态...`));
             const response = await this.client.get('/points/action/twitter_mira');
             const result = response.data;
             if(!result?.has_completed) {
@@ -131,7 +133,41 @@ class Worker {
                 log(chalk.green(` ✅ Mira关注任务已完成，无需执行`));
             }
         } catch (error) {
-            console.error('关注任务执行失败:', error.response?.status, error.response?.data || error.message);
+            console.error('Mira关注任务执行失败:', error.response?.status, error.response?.data || error.message);
+            return null;
+        }
+        await delay(5000)
+        try {
+            log(chalk.green(`⏳ 检测关注Twitter Klok任务状态...`));
+            const response = await this.client.get('/points/action/twitter_klok');
+            const result = response.data;
+            if(!result?.has_completed) {
+                await delay(5000)
+                log(chalk.green(` ✅ 任务未完成，开始执行关注任务...`));
+                await this.client.post('/points/action/twitter_klok');
+                log(chalk.green(` ✅ 任务执行完成`));
+            }else {
+                log(chalk.green(` ✅ Klok关注任务已完成，无需执行`));
+            }
+        } catch (error) {
+            console.error('Klok关注任务执行失败:', error.response?.status, error.response?.data || error.message);
+            return null;
+        }
+        await delay(5000)
+        try {
+            log(chalk.green(`⏳ 检测关注discord任务状态...`));
+            const response = await this.client.get('/points/action/discord');
+            const result = response.data;
+            if(!result?.has_completed) {
+                await delay(5000)
+                log(chalk.green(` ✅ 任务未完成，开始执行关注任务...`));
+                await this.client.post('/points/action/discord');
+                log(chalk.green(` ✅ 任务执行完成`));
+            }else {
+                log(chalk.green(` ✅ discord关注任务已完成，无需执行`));
+            }
+        } catch (error) {
+            console.error('discord关注任务执行失败:', error.response?.status, error.response?.data || error.message);
             return null;
         }
     }
