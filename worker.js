@@ -41,9 +41,11 @@ async function mainLoop() {
         await delay(5000)
         await worker.checkPoints();
         await worker.getModels();
+        await worker.checkTwitterMira();
         await delay(5000)
         await worker.createChat();
     } catch (error) {
+        console.log(error, 'error')
         log(chalk.red(`流程错误: ${error.data}`));
     }
 }
@@ -104,11 +106,32 @@ class Worker {
             const pointsData = response.data;
             log(chalk.green(` 聊天积分: ${pointsData.points?.inference || 0}`));
             log(chalk.green(` 邀请积分: ${pointsData.points?.referral || 0}`));
+            log(chalk.green(` Mira推特关注积分: ${pointsData.points?.twitter_mira || 0}`));
+            log(chalk.green(` Klok推特关注积分: ${pointsData.points?.twitter_klok || 0}`));
             log(chalk.green(` 总积分: ${pointsData.total_points || 0}`));
             log(chalk.green(`========================\x1b[0m\n`));
             return pointsData;
         } catch (error) {
             console.error('获取积分信息失败:', error.response?.status, error.response?.data || error.message);
+            return null;
+        }
+    }
+
+    async checkTwitterMira() {
+        log(chalk.green(`⏳ 检测关注Twitter Mira任务状态...`));
+        try {
+            const response = await this.client.get('/points/action/twitter_mira');
+            const result = response.data;
+            if(!result?.has_completed) {
+                await delay(5000)
+                log(chalk.green(` ✅ 任务未完成，开始执行关注任务...`));
+                await this.client.post('/points/action/twitter_mira');
+                log(chalk.green(` ✅ 任务执行完成`));
+            }else {
+                log(chalk.green(` ✅ Mira关注任务已完成，无需执行`));
+            }
+        } catch (error) {
+            console.error('关注任务执行失败:', error.response?.status, error.response?.data || error.message);
             return null;
         }
     }
@@ -137,7 +160,7 @@ class Worker {
         const loginBody = {
             signedMessage: signature,
             message: messageToSign,
-            referral_code: workerData.referral_code || null,
+            referral_code: workerData.base.referral_code || null,
         };
         log(chalk.green(`🔐 检验钱包签名中...`));
         const logRes = await this.client.post('/verify', loginBody);
@@ -198,6 +221,7 @@ class Worker {
                 });
                 this.chatTitle = title.data?.title;
             }
+            await this.checkPoints();
             await delay(4000)
             await this.createChat();
         }
