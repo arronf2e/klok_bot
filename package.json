@@ -14,7 +14,6 @@
     "https-proxy-agent": "^7.0.6",
     "js-yaml": "^4.1.0",
     "node-cron": "^3.0.3",
-    "socks-proxy-agent": "^8.0.5",
-    "crypto": "^1.0.1"
+    "socks-proxy-agent": "^8.0.5"
   }
 }
