@@ -1,12 +1,14 @@
 import { workerData, parentPort } from 'worker_threads';
 import { SocksProxyAgent } from 'socks-proxy-agent';
 import { HttpsProxyAgent } from 'https-proxy-agent';
+import crypto from 'crypto';
 import { ethers } from 'ethers';
 import axios from 'axios';
 import chalk from 'chalk';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
+import { createTask, getTaskResult } from './yescaptcha.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -124,12 +126,12 @@ class Worker {
             log(chalk.green(`⏳ 检测关注Twitter Mira任务状态...`));
             const response = await this.client.get('/points/action/twitter_mira');
             const result = response.data;
-            if(!result?.has_completed) {
+            if (!result?.has_completed) {
                 await delay(5000)
                 log(chalk.green(` ✅ 任务未完成，开始执行关注任务...`));
                 await this.client.post('/points/action/twitter_mira');
                 log(chalk.green(` ✅ 任务执行完成`));
-            }else {
+            } else {
                 log(chalk.green(` ✅ Mira关注任务已完成，无需执行`));
             }
         } catch (error) {
@@ -141,12 +143,12 @@ class Worker {
             log(chalk.green(`⏳ 检测关注Twitter Klok任务状态...`));
             const response = await this.client.get('/points/action/twitter_klok');
             const result = response.data;
-            if(!result?.has_completed) {
+            if (!result?.has_completed) {
                 await delay(5000)
                 log(chalk.green(` ✅ 任务未完成，开始执行关注任务...`));
                 await this.client.post('/points/action/twitter_klok');
                 log(chalk.green(` ✅ 任务执行完成`));
-            }else {
+            } else {
                 log(chalk.green(` ✅ Klok关注任务已完成，无需执行`));
             }
         } catch (error) {
@@ -158,12 +160,12 @@ class Worker {
             log(chalk.green(`⏳ 检测关注discord任务状态...`));
             const response = await this.client.get('/points/action/discord');
             const result = response.data;
-            if(!result?.has_completed) {
+            if (!result?.has_completed) {
                 await delay(5000)
                 log(chalk.green(` ✅ 任务未完成，开始执行关注任务...`));
                 await this.client.post('/points/action/discord');
                 log(chalk.green(` ✅ 任务执行完成`));
-            }else {
+            } else {
                 log(chalk.green(` ✅ discord关注任务已完成，无需执行`));
             }
         } catch (error) {
@@ -190,19 +192,36 @@ class Worker {
         return { signature, messageToSign };
     }
 
+    async verifyRecaptcha(token) {
+        const recaptchaResponse = await this.client.post('/recaptcha/verify', {
+            action: 'page_load',
+            token
+        });
+        console.log('Recaptcha验证结果:', recaptchaResponse.data);
+    }
+
     async login() {
-        // 登录逻辑
-        const { signature, messageToSign } = await this.getNonce();
-        const loginBody = {
-            signedMessage: signature,
-            message: messageToSign,
-            referral_code: workerData.base.referral_code || null,
-        };
-        log(chalk.green(`🔐 检验钱包签名中...`));
-        const logRes = await this.client.post('/verify', loginBody);
-        log(chalk.green(`🔐 ✅ 签名校验成功，已登录...`));
-        this.client.defaults.headers['x-session-token'] = logRes.data.session_token;
-        return logRes.data.session_token;
+        const taskResponse = await createTask();
+        if (!taskResponse.errorId) {
+            console.log('打码任务创建成功:', taskResponse.taskId);
+            const res = await getTaskResult(taskResponse.taskId);
+            console.log('打码任务结果:', res);
+            // await this.verifyRecaptcha(res?.solution?.gRecaptchaResponse);
+            // 登录逻辑
+            const { signature, messageToSign } = await this.getNonce();
+            const loginBody = {
+                signedMessage: signature,
+                message: messageToSign,
+                referral_code: workerData.base.referral_code || null,
+                recaptcha_token: res?.solution?.gRecaptchaResponse || null,
+            };
+            log(chalk.green(`🔐 检验钱包签名中...`));
+            const logRes = await this.client.post('/verify', loginBody);
+            log(chalk.green(`🔐 ✅ 签名校验成功，已登录...`));
+            this.client.defaults.headers['x-session-token'] = logRes.data.session_token;
+            console.log(logRes.data.session_token, 'logRes.data.session_token')
+            return logRes.data.session_token;
+        }
     }
 
     async getModels() {
@@ -228,7 +247,7 @@ class Worker {
                 this.threadId = crypto.randomUUID();
             }
             const question =
-            MESSAGES[Math.floor(Math.random() * MESSAGES.length)];
+                MESSAGES[Math.floor(Math.random() * MESSAGES.length)];
             log(`❓ 提问: ${question}`);
             const postMessages = this.chatList.concat([
                 {
@@ -247,8 +266,8 @@ class Worker {
             };
             const response = await this.client.post('/chat', payload);
             log(chalk.green(` ✅ 模型成功回复，${response.data}`));
-            this.chatList = this.chatList.concat([{role: 'assistant', content: response.data}]);
-            if(!this.chatTitle){
+            this.chatList = this.chatList.concat([{ role: 'assistant', content: response.data }]);
+            if (!this.chatTitle) {
                 const title = await this.client.post('/chat/title', {
                     id: this.threadId,
                     language: 'chinese',
@@ -266,7 +285,7 @@ class Worker {
 
 async function startWithDelay() {
     log(chalk.yellow(`⏳ 线程将在 ${(THREAD_DELAY / 1000).toFixed(1)} 秒后开始...`));
-    await new Promise(resolve => setTimeout(resolve, THREAD_DELAY));
+    // await new Promise(resolve => setTimeout(resolve, THREAD_DELAY));
     mainLoop();
 }
 
