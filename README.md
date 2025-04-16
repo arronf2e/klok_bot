@@ -40,6 +40,13 @@ who are you?
 ...
 ```
 
+新建 `config.json` 文件并写入
+```json
+{
+    "clientKey": ""
+}
+```
+
 在 `config.yaml` 文件中配置基础配置。
 ```yaml
 base:
